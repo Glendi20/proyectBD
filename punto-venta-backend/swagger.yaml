@@ -1,0 +1,163 @@
+# Archivo: punto-venta-backend/swagger.yaml
+
+openapi: 3.0.0
+info:
+  title: API de Punto de Venta Online
+  description: API RESTful para la gestión del sistema de Punto de Venta (Oracle DB + Node.js).
+  version: 1.0.0
+servers:
+  - url: http://localhost:3001/api # Base URL para las rutas
+    description: Servidor de Desarrollo
+tags:
+  - name: 1. Catálogos
+    description: Gestión de categorías, roles, y tasas de impuestos.
+  - name: 2. Entidades Principales
+    description: CRUD para Clientes, Productos, Proveedores y Usuarios.
+  - name: 3. Inventario y Descuentos
+    description: Operaciones transaccionales de stock y configuración de descuentos.
+  - name: 4. Transacciones (Ventas/Compras)
+    description: Operaciones de venta, pago y consulta de compras.
+  - name: 5. Movimientos y Auditoría
+    description: Consulta de movimientos financieros y logs del sistema.
+
+paths:
+  # ----------------------------------------------------
+  # 2. ENTIDADES PRINCIPALES (Clientes, Productos, Proveedores, Usuarios)
+  # ----------------------------------------------------
+  /clientes:
+    get:
+      tags: [2. Entidades Principales]
+      summary: Obtiene la lista básica de todos los clientes.
+    post:
+      tags: [2. Entidades Principales]
+      summary: Registra un nuevo cliente (NIT/ID, Nombre, Tipo).
+      requestBody: { required: true, content: { 'application/json': { example: { cliente_id: "C123", nombre: "Juan", apellidos: "Perez", tipo_cliente: "normal" } } } }
+
+  /productos:
+    get:
+      tags: [2. Entidades Principales]
+      summary: Obtiene la lista del catálogo de productos activos, stock y precios.
+    post:
+      tags: [2. Entidades Principales]
+      summary: Registra un nuevo producto en el catálogo (sin stock inicial, usa /inventario para stock).
+      requestBody: { required: true, content: { 'application/json': { example: { producto_codigo: "PROD001", nombre: "Leche Entera", precio_venta: 1.5, categoria_id: 1 } } } }
+
+  /proveedores:
+    get:
+      tags: [2. Entidades Principales]
+      summary: Obtiene la lista de todos los proveedores registrados.
+    post:
+      tags: [2. Entidades Principales]
+      summary: Registra un nuevo proveedor (NIT/ID, Razón Social, Plazo de Crédito).
+      requestBody: { required: true, content: { 'application/json': { example: { proveedor_id: "P456", razon_social: "Distribuidora ABC", condiciones_pago: "crédito", plazo_credito_dias: 30 } } } }
+
+  /usuarios:
+    get:
+      tags: [2. Entidades Principales]
+      summary: Obtiene la lista de usuarios del sistema (DPI, Nombre, Rol).
+    post:
+      tags: [2. Entidades Principales]
+      summary: Registra un nuevo usuario (empleado) usando el SP_CREAR_USUARIO.
+      requestBody: { required: true, content: { 'application/json': { example: { usuario_id: "DPI789", nombre: "Ana", nombre_usuario: "ana.caj", rol_id: 2 } } } }
+
+  # ----------------------------------------------------
+  # 1. CATÁLOGOS (Categorías, Roles)
+  # ----------------------------------------------------
+  /categorias:
+    get:
+      tags: [1. Catálogos]
+      summary: Obtiene la lista de todas las categorías de productos.
+    post:
+      tags: [1. Catálogos]
+      summary: Crea una nueva categoría (usa secuencia).
+      requestBody: { required: true, content: { 'application/json': { example: { nombre: "Limpieza" } } } }
+      
+  /roles:
+    get:
+      tags: [1. Catálogos]
+      summary: Obtiene la lista de roles de usuario (Cajero, Administrador).
+    post:
+      tags: [1. Catálogos]
+      summary: Crea un nuevo rol (usa secuencia).
+      requestBody: { required: true, content: { 'application/json': { example: { nombre_rol: "Gerente" } } } }
+
+  # ----------------------------------------------------
+  # 3. INVENTARIO Y DESCUENTOS (Logística)
+  # ----------------------------------------------------
+  /inventario/stock:
+    get:
+      tags: [3. Inventario y Descuentos]
+      summary: Obtiene el historial reciente de ajustes de inventario.
+    post:
+      tags: [3. Inventario y Descuentos]
+      summary: Ingresa stock a un producto existente (SP_INGRESAR_PRODUCTO).
+      requestBody: { required: true, content: { 'application/json': { example: { producto_codigo: "PROD001", cantidad_ingreso: 50, motivo: "Compra Proveedor", usuario_id: "DPI789" } } } }
+
+  /impuestos/tasas:
+    get:
+      tags: [3. Inventario y Descuentos]
+      summary: Obtiene el catálogo de tasas de impuestos (IVA, etc.).
+    post:
+      tags: [3. Inventario y Descuentos]
+      summary: Crea una nueva tasa de impuesto.
+      requestBody: { required: true, content: { 'application/json': { example: { nombre: "IVA", tasa_porcentaje: 12.0 } } } }
+
+  /impuestos/producto/{codigo}:
+    get:
+      tags: [3. Inventario y Descuentos]
+      summary: Obtiene las tasas de impuesto aplicadas a un producto por su código.
+
+  /impuestos/producto:
+    post:
+      tags: [3. Inventario y Descuentos]
+      summary: Asocia una tasa de impuesto a un producto (tabla IMPUESTOS_PRODUCTOS).
+      requestBody: { required: true, content: { 'application/json': { example: { producto_codigo: "PROD001", impuesto_id: 1 } } } }
+      
+  /descuentos/catalogo:
+    get:
+      tags: [3. Inventario y Descuentos]
+      summary: Obtiene el catálogo de porcentajes de descuento disponibles.
+
+  /descuentos/aplicar:
+    post:
+      tags: [3. Inventario y Descuentos]
+      summary: Aplica un descuento a un Producto, a una Categoría o Globalmente.
+      requestBody: { required: true, content: { 'application/json': { example: { descuento_id: 1, tipo_aplicacion: "CATEGORIA", categoria_id: 3 } } } }
+
+  # ----------------------------------------------------
+  # 4. TRANSACCIONES (Ventas/Compras)
+  # ----------------------------------------------------
+  /ventas/detalle:
+    post:
+      tags: [4. Transacciones (Ventas/Compras)]
+      summary: Inserta una línea de detalle en una venta y decrementa el stock (SP_INSERTAR_DETALLE_VENTA).
+      requestBody: { required: true, content: { 'application/json': { example: { venta_id: 10, producto_codigo: "PROD001", cantidad: 2, precio_venta: 10.0, descuento_linea: 0.5, impuestos_linea: 1.8 } } } }
+
+  /ventas/pagar:
+    post:
+      tags: [4. Transacciones (Ventas/Compras)]
+      summary: Procesa el pago de una venta (contado o a crédito) y actualiza MOVIMIENTOS_FINANCIEROS (SP_PAGAR_VENTA).
+      requestBody: { required: true, content: { 'application/json': { example: { venta_id: 10, monto_pago: 20.0, usuario_cajero_id: "DPI789" } } } }
+
+  /compras:
+    get:
+      tags: [4. Transacciones (Ventas/Compras)]
+      summary: Obtiene la cabecera de todas las transacciones de compra.
+      
+  /compras/{compraId}/detalle:
+    get:
+      tags: [4. Transacciones (Ventas/Compras)]
+      summary: Obtiene el detalle de productos para una compra específica.
+
+  # ----------------------------------------------------
+  # 5. MOVIMIENTOS Y AUDITORÍA
+  # ----------------------------------------------------
+  /movimientos/pendientes:
+    get:
+      tags: [5. Movimientos y Auditoría]
+      summary: Obtiene todos los saldos pendientes de Cobrar/Pagar (Créditos activos).
+
+  /auditoria:
+    get:
+      tags: [5. Movimientos y Auditoría]
+      summary: Obtiene los registros recientes de operaciones críticas (ajustes de stock, cambios de precio).
