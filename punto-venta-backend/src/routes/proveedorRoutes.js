@@ -6,5 +6,6 @@ const proveedorController = require('../controllers/proveedorController');
 
 router.get('/', proveedorController.getAllProveedores);
 router.post('/', proveedorController.createProveedor);
+router.put('/:id', proveedorController.updateProveedor);
 
 module.exports = router;

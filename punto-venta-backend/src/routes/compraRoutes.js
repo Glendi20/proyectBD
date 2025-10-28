@@ -3,14 +3,10 @@
 const express = require('express');
 const router = express.Router();
 const compraController = require('../controllers/compraController');
-const detalleCompraController = require('../controllers/detalleCompraController');
 
-// Ruta principal para listar cabeceras de compras
-router.get('/', compraController.getAllCompras);
+// RUTA PARA EL PASO 1 (INSERTAR CABECERA)
+router.post('/header', compraController.insertCompraHeader);
 
-// Ruta para ver el detalle de una compra específica
-router.get('/:compraId/detalle', detalleCompraController.getDetalleByCompraId);
-
-// Nota: La ruta POST para crear una compra completa se implementaría con un SP dedicado.
+// Aquí irían las rutas router.get('/', ...) y las de detalle, pero las omitimos por ahora.
 
 module.exports = router;

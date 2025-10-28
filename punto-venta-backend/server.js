@@ -11,7 +11,7 @@ const YAML = require('yamljs');
 const swaggerDocument = YAML.load('./swagger.yaml');
 // --------------------------
 
-// Importar TODOS los módulos de rutas
+// Importar Módulos de Rutas
 const clienteRoutes = require('./src/routes/clienteRoutes');
 const categoriaRoutes = require('./src/routes/categoriaRoutes');
 const productoRoutes = require('./src/routes/productoRoutes');
@@ -24,6 +24,7 @@ const compraRoutes = require('./src/routes/compraRoutes');
 const ventaRoutes = require('./src/routes/ventaRoutes');
 const movimientoRoutes = require('./src/routes/movimientoRoutes');
 const auditoriaRoutes = require('./src/routes/auditoriaRoutes');
+const authRoutes = require('./src/routes/authRoutes'); // <--- ¡NUEVA RUTA DE LOGIN!
 
 const app = express();
 const PORT = process.env.API_PORT || 3001;
@@ -36,13 +37,15 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // ----------------------------------------------------
 // 1. INTEGRACIÓN DE SWAGGER
 // ----------------------------------------------------
-// La interfaz de Swagger estará disponible en http://localhost:3001/api-docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // ----------------------------------------------------
 // 2. CARGA DE RUTAS DE LA API
 // ----------------------------------------------------
 app.get('/', (req, res) => res.send('API de Punto de Venta en funcionamiento. Visita /api-docs para la documentación.'));
+
+// Rutas de Autenticación
+app.use('/api/auth', authRoutes); // <--- Endpoint principal para el Login
 
 // Rutas de Entidades y Catálogos
 app.use('/api/clientes', clienteRoutes);
@@ -52,7 +55,7 @@ app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/roles', rolRoutes);
 
-// Rutas de Impuestos y Descuentos (Catálogos y Unión N:M)
+// Rutas de Impuestos y Descuentos
 app.use('/api/impuestos', impuestoRoutes); 
 app.use('/api/descuentos', descuentoRoutes);
 

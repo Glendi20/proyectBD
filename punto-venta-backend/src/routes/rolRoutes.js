@@ -6,5 +6,6 @@ const rolController = require('../controllers/rolController');
 
 router.get('/', rolController.getAllRoles);
 router.post('/', rolController.createRol);
+router.put('/:id', rolController.updateRol);
 
 module.exports = router;

@@ -7,6 +7,7 @@ const impuestoController = require('../controllers/impuestoController');
 // Rutas para las tasas de impuestos (ej. /api/impuestos)
 router.get('/tasas', impuestoController.getAllTasas);
 router.post('/tasas', impuestoController.createTasa);
+router.put('/tasas/:id', impuestoController.updateTasa);
 
 // Rutas para la tabla de unión (ej. /api/impuestos/producto/XYZ)
 const impuestoProductoController = require('../controllers/impuestoProductoController');

@@ -1,35 +1,41 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// Archivo: punto-venta-frontend/src/App.jsx
+
+import React, { useState } from 'react';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css'; // Añadido para iconos
+import Login from './components/Login';
+import DashboardLayout from './components/DashboardLayout'; // Nuevo componente
+import './App.css'; 
 
 function App() {
-  const [count, setCount] = useState(0)
+    // user contendrá { dpi, nombre, rol } si está autenticado
+    const [user, setUser] = useState(null); 
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    const handleLoginSuccess = (userData) => {
+        // Almacena los datos del usuario después de la autenticación exitosa
+        setUser(userData); 
+    };
+
+    const handleLogout = () => {
+        // Limpia el estado del usuario para volver a la pantalla de login
+        setUser(null);
+    };
+
+    return (
+        <div className="app">
+            {!user ? (
+                // PANTALLA DE LOGIN
+                // Note: La API de login debe devolver { nombre: 'Admin', rol: 'Administrador' } o { nombre: 'Cajero', rol: 'Cajero' }
+                <Login onLoginSuccess={handleLoginSuccess} />
+            ) : (
+                // PANTALLA DE DASHBOARD con Menú Dinámico
+                <DashboardLayout 
+                    user={user} 
+                    handleLogout={handleLogout} 
+                />
+            )}
+        </div>
+    );
 }
 
-export default App
+export default App;
