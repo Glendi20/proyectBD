@@ -1,33 +1,33 @@
-// Archivo: src/features/Compra/CompraAdminView.jsx
+// Archivo: src/features/Ventas/VentaAdminView.jsx
 
 import React, { useState } from 'react';
 // Importamos los componentes esenciales
-import CompraHeaderForm from './CompraHeaderForm'; 
+import VentaHeaderForm from './VentaHeaderForm'; 
 import DocumentoAbiertoList from './DocumentoAbiertoList'; 
-import CompraDetailForm from './CompraDetailForm'; 
-import CompraList from './CompraList'; // <--- COMPONENTE DE HISTORIAL IMPORTADO
+import VentaDetailForm from './VentaDetailForm'; 
+import VentaList from './VentaList'; // <--- AÑADIDO: Componente de Historial de Ventas
 
-const CompraAdminView = ({ user }) => {
-    // Estados de control de flujo
-    const [view, setView] = useState('new_header'); // header, list_open, detail, list
-    const [compraId, setCompraId] = useState(null); 
+const VentaAdminView = ({ user }) => {
+    // Estado de control de flujo
+    const [view, setView] = useState('new_header'); // Iniciamos mostrando el formulario de cabecera
+    const [ventaId, setVentaId] = useState(null); 
     const [refreshKey, setRefreshKey] = useState(0); 
 
-    // Callback llamado por CompraHeaderForm al guardar
-    const handleHeaderCreated = (newCompraId) => {
-        setCompraId(newCompraId);
+    // Callback llamado por VentaHeaderForm al guardar
+    const handleHeaderCreated = (newVentaId) => {
+        setVentaId(newVentaId);
         setView('detail'); // Pasar al detalle (Paso 2)
     };
 
     // Callback llamado por DocumentoAbiertoList al seleccionar un documento para editar
     const handleSelectDocument = (documento) => {
-        setCompraId(documento.compraId);
+        setVentaId(documento.ventaId);
         setView('detail'); // Pasar a la vista de detalle
     };
     
     // Función de callback para completar el flujo de detalle
     const handleDetailCompleted = () => {
-        setCompraId(null);
+        setVentaId(null);
         setView('list_open'); // Volver a ver si hay más documentos abiertos
         setRefreshKey(prev => prev + 1); // Recarga la lista
     };
@@ -36,7 +36,7 @@ const CompraAdminView = ({ user }) => {
         // PASO 1: CREAR CABECERA (La vista inicial)
         if (view === 'new_header') {
             return (
-                <CompraHeaderForm 
+                <VentaHeaderForm 
                     onHeaderCreated={handleHeaderCreated} 
                     user={user} 
                 />
@@ -45,23 +45,24 @@ const CompraAdminView = ({ user }) => {
         
         // PASO 2: LISTA DE DOCUMENTOS ABIERTOS / CONTINUAR EDICIÓN
         if (view === 'list_open') {
-            return <DocumentoAbiertoList onSelectDocument={handleSelectDocument} />;
+            return <DocumentoAbiertoList key={refreshKey} onSelectDocument={handleSelectDocument} />;
         }
         
         // PASO 3: AGREGAR DETALLES / EDITAR
-        if (view === 'detail' && compraId) {
+        if (view === 'detail' && ventaId) {
+            // Renderizamos el formulario de detalle
             return (
-                // Renderizamos el formulario de detalle
-                <CompraDetailForm
-                    compraId={compraId}
+                <VentaDetailForm
+                    ventaId={ventaId}
                     onDetailCompleted={handleDetailCompleted} 
                 />
             );
         }
         
-        // PASO 4: VER HISTORIAL (Ahora renderiza el componente real)
+        // PASO 4: VER HISTORIAL (Nueva vista)
         if (view === 'list') {
-            return <CompraList key={refreshKey} />; 
+            // VentaList mostrará las ventas con estado 'contado' o 'crédito'
+            return <VentaList key={refreshKey} />; 
         }
         
         return null;
@@ -69,7 +70,7 @@ const CompraAdminView = ({ user }) => {
 
     return (
         <div className="p-4">
-            <h3 className="mb-4">Módulo de Compras (Gestión de Stock)</h3>
+            <h3 className="mb-4">Módulo de Ventas (CAJA)</h3>
             
             {/* BOTONES DE NAVEGACIÓN */}
             <div className="btn-group mb-4" role="group">
@@ -80,7 +81,7 @@ const CompraAdminView = ({ user }) => {
                     1. Crear Nuevo Documento
                 </button>
                 <button 
-                    className={`btn ${view === 'list_open' || view === 'detail' ? 'btn-success' : 'btn-outline-success'}`}
+                    className={`btn ${view === 'list_open' ? 'btn-success' : 'btn-outline-success'}`}
                     onClick={() => setView('list_open')}
                 >
                     2. Continuar Edición
@@ -88,18 +89,17 @@ const CompraAdminView = ({ user }) => {
                 <button 
                     className={`btn ${view === 'list' ? 'btn-primary' : 'btn-outline-primary'}`}
                     onClick={() => setView('list')}
-                    // El botón está ACTIVO, ya que el componente CompraList existe y se renderizará
                 >
                     3. Ver Historial
                 </button>
             </div>
 
             {/* --- Contenido Dinámico --- */}
-            <div className="card shadow-sm">
+            <div className="card shadow-sm p-3">
                 {renderContent()}
             </div>
         </div>
     );
 };
 
-export default CompraAdminView;
+export default VentaAdminView;

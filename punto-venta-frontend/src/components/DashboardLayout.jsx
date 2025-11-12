@@ -1,13 +1,8 @@
 // Archivo: punto-venta-frontend/src/components/DashboardLayout.jsx
 
 import React, { useState } from 'react';
-
-// Importación de Componentes de Layout/Núcleo
 import WelcomeScreen from './WelcomeScreen';
-// Eliminamos la importación de CajaModule.jsx
-
-
-// >>> IMPORTACIÓN DE MÓDULOS DE FEATURES <<<
+import CajaModule from '../features/Ventas/VentaAdminView';
 import ProductAdminView from '../features/Product/ProductAdminView'; 
 import TaxAdminView from '../features/Tax/TaxAdminView'; 
 import CategoryAdminView from '../features/Category/CategoryAdminView'; 
@@ -16,40 +11,45 @@ import ClientAdminView from '../features/Client/ClientAdminView';
 import RoleAdminView from '../features/Role/RoleAdminView'; 
 import UserAdminView from '../features/User/UserAdminView'; 
 import DiscountAdminView from '../features/Discount/DiscountAdminView'; 
-import CompraAdminView from '../features/Compra/CompraAdminView'; // <-- VISTA DE COMPRAS FINAL
-
+import CompraAdminView from '../features/Compra/CompraAdminView'; 
 
 // Define el mapa de todas las rutas y sus permisos de acceso
 const menuItems = [
-    // Opción por defecto
-    { id: 'welcome', label: 'Inicio', icon: 'bi-house-door-fill', allowedRoles: ['Administrador', 'Gerente', 'Cajero'] },
+    // ROL: Administrador, Gerente, Cajero, Bodega
+    { id: 'welcome', label: 'Inicio', icon: 'bi-house-door-fill', allowedRoles: ['Administrador', 'Gerente', 'Cajero', 'Bodega'] },
+
+    // Módulos de Operación de Venta
+    // ROL: Administrador, Gerente, Cajero (Necesario para el flujo de caja)
+    { id: 'caja', label: 'Caja / Venta', icon: 'bi-cash-coin', allowedRoles: ['Administrador', 'Gerente', 'Cajero'], component: CajaModule },
     
-    // Módulos de Gestión (Solo Admin/Gerente)
-    { id: 'productos', label: 'Productos', icon: 'bi-box-seam', allowedRoles: ['Administrador', 'Gerente'], component: ProductAdminView }, 
-    { id: 'categorias', label: 'Categorías', icon: 'bi-tags-fill', allowedRoles: ['Administrador', 'Gerente'], component: CategoryAdminView }, 
+    // Módulos de Inventario y Compras (Bodega)
+    // ROL: Administrador, Gerente, Bodega
+    { id: 'productos', label: 'Productos', icon: 'bi-box-seam', allowedRoles: ['Administrador', 'Gerente', 'Bodega'], component: ProductAdminView }, 
+    { id: 'categorias', label: 'Categorías', icon: 'bi-tags-fill', allowedRoles: ['Administrador', 'Gerente', 'Bodega'], component: CategoryAdminView }, 
+    { id: 'compras', label: 'Compras', icon: 'bi-box-arrow-in-left', allowedRoles: ['Administrador', 'Gerente', 'Bodega'], component: CompraAdminView }, 
+    { id: 'proveedores', label: 'Proveedores', icon: 'bi-truck', allowedRoles: ['Administrador', 'Gerente', 'Bodega'], component: ProveedorAdminView }, 
     
-    // Tasas de Impuestos y Descuentos
+    // RUTA DE CLIENTES (Necesario para el Cajero)
+    // ROL: Administrador, Gerente, Cajero
+    { id: 'clientes', label: 'Clientes', icon: 'bi-people-fill', allowedRoles: ['Administrador', 'Gerente', 'Cajero'], component: ClientAdminView }, 
+    
+    // Módulos de Administración/Configuración (Solo Admin/Gerente)
     { id: 'tasas_impuestos', label: 'Tasas Impuestos', icon: 'bi-percent', allowedRoles: ['Administrador', 'Gerente'], component: TaxAdminView },
     { id: 'descuentos', label: 'Descuentos', icon: 'bi-scissors', allowedRoles: ['Administrador', 'Gerente'], component: DiscountAdminView }, 
     
-    // Rutas de Entidades
-    { id: 'clientes', label: 'Clientes', icon: 'bi-people-fill', allowedRoles: ['Administrador', 'Gerente'], component: ClientAdminView }, 
-    { id: 'proveedores', label: 'Proveedores', icon: 'bi-truck', allowedRoles: ['Administrador', 'Gerente'], component: ProveedorAdminView }, 
-    
-    // RUTA DE COMPRAS (INTEGRACIÓN)
-    { id: 'compras', label: 'Compras', icon: 'bi-box-arrow-in-left', allowedRoles: ['Administrador', 'Gerente'], component: CompraAdminView }, 
-    
-    // RUTA DE ROLES Y USUARIOS
+    // Módulos de Seguridad/Roles (Solo Admin/Gerente)
     { id: 'roles', label: 'Roles', icon: 'bi-person-rolodex', allowedRoles: ['Administrador', 'Gerente'], component: RoleAdminView }, 
     { id: 'usuarios', label: 'Usuarios', icon: 'bi-person-badge-fill', allowedRoles: ['Administrador', 'Gerente'], component: UserAdminView },
     
-    // Módulos de Reportes
+    // Módulos de Reportes (Solo Admin/Gerente)
     { id: 'reportes', label: 'Reportes', icon: 'bi-graph-up', allowedRoles: ['Administrador', 'Gerente'] },
 ];
 
 const DashboardLayout = ({ user, handleLogout }) => {
+    // El módulo activo por defecto al cargar el dashboard es 'welcome'
     const [activeModule, setActiveModule] = useState('welcome'); 
 
+    // Filtra el menú basado en el rol del usuario
     const filteredMenuItems = menuItems.filter(item => 
         item.allowedRoles.includes(user.rol)
     );
@@ -57,9 +57,8 @@ const DashboardLayout = ({ user, handleLogout }) => {
     const renderContent = () => {
         const activeMenuItem = menuItems.find(item => item.id === activeModule);
         
-        const ComponentToRender = activeModule === 'welcome' 
-            ? WelcomeScreen 
-            : (activeMenuItem?.component || WelcomeScreen);
+        // Si el módulo requiere un componente, lo usa; si no, muestra la pantalla de bienvenida
+        const ComponentToRender = activeMenuItem?.component || WelcomeScreen;
 
         return <ComponentToRender user={user} />;
     };
