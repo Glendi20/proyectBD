@@ -1,6 +1,6 @@
 // Archivo: src/features/Ventas/VentaList.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
@@ -9,7 +9,6 @@ const API_URL = 'http://localhost:3001/api/ventas/historial';
 const FACTURA_API_URL = 'http://localhost:3001/api/ventas/factura'; 
 
 // --- FUNCIÓN AUXILIAR CRÍTICA ---
-// Limpia cadenas de texto: elimina comillas dobles y asegura que el valor no sea null.
 const safeString = (s) => (s || '').toString().replace(/"/g, "'").trim();
 // ---------------------------------
 
@@ -17,23 +16,51 @@ const safeString = (s) => (s || '').toString().replace(/"/g, "'").trim();
 const VentaList = () => {
     const [sales, setSales] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [refreshKey, setRefreshKey] = useState(0); 
 
-    const fetchSales = async () => {
+    const fetchSales = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await axios.get(API_URL);
+            const params = {};
+            if (startDate) params.startDate = startDate;
+            if (endDate) params.endDate = endDate;
+
+            const response = await axios.get(API_URL, { params });
             setSales(response.data.closedDocuments || []); 
         } catch (err) {
-            Swal.fire('Error', 'No se pudo cargar la lista de documentos de venta abiertos.', 'error');
+            Swal.fire('Error', 'No se pudo cargar el historial de ventas.', 'error');
             setSales([]);
         } finally {
             setLoading(false);
         }
-    };
+    }, [startDate, endDate]); 
 
     useEffect(() => {
         fetchSales();
-    }, []);
+    }, [fetchSales, refreshKey]);
+
+    const handleSearch = () => {
+        setRefreshKey(prev => prev + 1);
+    };
+
+    const handleClearFilters = () => {
+        setStartDate(''); 
+        setEndDate('');
+        setRefreshKey(prev => prev + 1);
+    };
+
+    // --- CÁLCULO: TOTAL ACUMULADO ---
+    const calculateGrandTotal = () => {
+        const total = sales.reduce((sum, sale) => {
+            const bruto = parseFloat(sale.totalBruto) || 0;
+            return sum + bruto;
+        }, 0);
+        return total.toFixed(2);
+    };
+    const grandTotal = calculateGrandTotal();
+
 
     // --- FUNCIÓN PARA VER/GENERAR PDF (Factura) ---
     const handleViewPdf = async (ventaId) => {
@@ -49,16 +76,13 @@ const VentaList = () => {
             const response = await axios.get(urlConCacheBuster);
             const { cabecera, detalles } = response.data;
             
-            // *** CRÍTICO: Aseguramos que detalles sea siempre un array para evitar el fallo .map is not a function ***
             const detallesArray = detalles || []; 
 
             // Manejo seguro de la fecha.
             let fechaFormateada = 'N/A';
             try {
                 fechaFormateada = new Date(cabecera.FECHA_VENTA).toLocaleDateString();
-            } catch (e) {
-                /* Si falla el parseo, se mantiene 'N/A' */
-            }
+            } catch (e) { /* Si falla el parseo, se mantiene 'N/A' */ }
 
             // 1. CONSTRUCCIÓN DE LA CADENA HTML DE DETALLES
             const detallesHtml = detallesArray.map(d => `
@@ -98,7 +122,6 @@ const VentaList = () => {
 
             } catch (e) {
                 console.error("Error FATAL al construir el HTML de la factura:", e);
-                // Si falla la construcción del string, lanzamos un error que el catch maneja.
                 throw new Error("ERROR_RENDERIZADO_FATAL_HTML");
             }
 
@@ -131,8 +154,48 @@ const VentaList = () => {
         <div className="mt-4">
             <h4 className="text-primary">3. 📄 Historial de Ventas (Contado y Crédito)</h4>
             <hr/>
+            
+            {/* --- CUADRO DE BÚSQUEDA POR FECHA --- */}
+            <div className="card shadow-sm p-3 mb-4">
+                <h6 className="card-title">Filtrar por Fecha de Transacción</h6>
+                <div className="d-flex align-items-center">
+                    <div className="me-3">
+                        <label className="form-label">Desde:</label>
+                        <input 
+                            type="date" 
+                            className="form-control" 
+                            value={startDate} 
+                            onChange={(e) => setStartDate(e.target.value)} 
+                        />
+                    </div>
+                    <div className="me-3">
+                        <label className="form-label">Hasta:</label>
+                        <input 
+                            type="date" 
+                            className="form-control" 
+                            value={endDate} 
+                            onChange={(e) => setEndDate(e.target.value)} 
+                        />
+                    </div>
+                    <button 
+                        className="btn btn-primary mt-3" 
+                        onClick={handleSearch}
+                        disabled={loading}
+                    >
+                        Buscar
+                    </button>
+                    <button 
+                        className="btn btn-secondary mt-3 ms-2" 
+                        onClick={handleClearFilters}
+                    >
+                        Limpiar
+                    </button>
+                </div>
+            </div>
+            {/* -------------------------------------- */}
+
             {sales.length === 0 ? (
-                <div className="alert alert-warning">No hay documentos finalizados en el historial.</div>
+                <div className="alert alert-warning">No hay documentos finalizados en el historial que coincidan con el filtro.</div>
             ) : (
                 <table className="table table-striped table-hover table-sm">
                     <thead className="table-dark">
@@ -170,6 +233,15 @@ const VentaList = () => {
                             </tr>
                         ))}
                     </tbody>
+                    {/* --- FILA DE TOTALES ACUMULADOS --- */}
+                    <tfoot>
+                        <tr>
+                            <td colSpan="3" className="text-end fw-bold bg-light">TOTAL ACUMULADO DEL PERIODO:</td>
+                            <td className="text-end fw-bold bg-light text-success">Q{grandTotal}</td>
+                            <td colSpan="3" className="bg-light"></td>
+                        </tr>
+                    </tfoot>
+                    {/* ---------------------------------- */}
                 </table>
             )}
         </div>

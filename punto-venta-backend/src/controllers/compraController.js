@@ -227,21 +227,56 @@ exports.updateCompraStatus = async (req, res) => {
 exports.getComprasHistorial = async (req, res) => {
     let connection;
     try {
-        connection = await db.oracledb.getConnection();
-        const result = await connection.execute(`
+        // *** CRÍTICO: Recibir los parámetros de fecha ***
+        const { startDate, endDate } = req.query;
+
+        // Definimos los estados finales
+        const estadosFinales = ['CERRADA', 'FINALIZADA']; // Asumo que el segundo estado es FINALIZADA, no CERRADA dos veces.
+
+        // 1. Construir la consulta base
+        let query = `
             SELECT 
                 c.COMPRA_ID AS "compraId", c.FECHA_COMPRA AS "fechaCompra", 
                 p.RAZON_SOCIAL AS "proveedorNombre", c.NUMERO_DOCUMENTO AS "numeroDocumento",
                 c.TOTAL_BRUTO AS "totalBruto", c.ESTADO AS "estado"
             FROM COMPRAS c
             JOIN PROVEEDORES p ON c.PROVEEDOR_ID = p.PROVEEDOR_ID
-            WHERE c.ESTADO = 'CERRADA' OR c.ESTADO = 'CERRADA'
-            ORDER BY c.FECHA_COMPRA DESC
-        `);
+            WHERE c.ESTADO IN (:estado1, :estado2)
+        `;
+
+        const binds = {
+            estado1: estadosFinales[0],
+            estado2: estadosFinales[1]
+        };
+
+        // 2. Añadir filtros de fecha si existen
+        if (startDate) {
+            // Filtro "Desde": Incluye transacciones desde el inicio del día
+            query += ` AND c.FECHA_COMPRA >= TO_DATE(:startDate, 'YYYY-MM-DD')`;
+            binds.startDate = startDate;
+        }
+
+        if (endDate) {
+            // Filtro "Hasta": Incluye transacciones hasta el final del día (añadiendo casi un día completo)
+            query += ` AND c.FECHA_COMPRA <= TO_DATE(:endDate, 'YYYY-MM-DD') + INTERVAL '1' DAY - INTERVAL '1' SECOND`;
+            binds.endDate = endDate;
+        }
+
+        query += ` ORDER BY c.FECHA_COMPRA DESC`;
+
+        connection = await db.oracledb.getConnection();
+        
+        // 3. Ejecutar la consulta con los filtros dinámicos
+        const result = await connection.execute(
+            query,
+            binds,
+            { outFormat: db.oracledb.OUT_FORMAT_OBJECT }
+        );
+        
         res.status(200).json({ closedDocuments: result.rows });
     } catch (err) {
-        console.error("Error al obtener historial:", err);
-        res.status(500).json({ error: 'Error interno al obtener historial.' });
+        console.error("Error al obtener historial de compras con filtro:", err);
+        res.status(500).json({ error: 'Error interno al obtener historial de compras.' });
     } finally {
         if (connection) await connection.close().catch(err => console.error(err));
     }

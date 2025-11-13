@@ -24,7 +24,8 @@ const compraRoutes = require('./src/routes/compraRoutes');
 const ventaRoutes = require('./src/routes/ventaRoutes');
 const movimientoRoutes = require('./src/routes/movimientoRoutes');
 const auditoriaRoutes = require('./src/routes/auditoriaRoutes');
-const authRoutes = require('./src/routes/authRoutes'); // <--- ¡NUEVA RUTA DE LOGIN!
+const authRoutes = require('./src/routes/authRoutes');
+const reportesRoutes = require('./src/routes/reportesRoutes'); // <--- ¡NUEVA IMPORTACIÓN! 🚀
 
 const app = express();
 const PORT = process.env.API_PORT || 3001;
@@ -45,7 +46,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.get('/', (req, res) => res.send('API de Punto de Venta en funcionamiento. Visita /api-docs para la documentación.'));
 
 // Rutas de Autenticación
-app.use('/api/auth', authRoutes); // <--- Endpoint principal para el Login
+app.use('/api/auth', authRoutes); 
 
 // Rutas de Entidades y Catálogos
 app.use('/api/clientes', clienteRoutes);
@@ -64,6 +65,7 @@ app.use('/api/compras', compraRoutes);
 app.use('/api/ventas', ventaRoutes);
 app.use('/api/movimientos', movimientoRoutes);
 app.use('/api/auditoria', auditoriaRoutes);
+app.use('/api/reportes', reportesRoutes); // <--- ¡NUEVO MONTAJE CRÍTICO! 🚀
 
 // ----------------------------------------------------
 // 3. INICIO DEL SERVIDOR Y CONEXIÓN A DB

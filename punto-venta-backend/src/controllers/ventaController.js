@@ -392,13 +392,12 @@ exports.processCheckout = async (req, res) => {
 exports.getVentasCerradas = async (req, res) => {
     let connection;
     try {
-        const estadosFinales = ['contado', 'crédito']; // Los estados que confirmamos
-        
-        connection = await db.oracledb.getConnection();
-        
-        // La consulta busca ventas que ya no están 'ABIERTA'
-        const result = await connection.execute(
-            `SELECT 
+        const estadosFinales = ['contado', 'crédito'];
+        // *** CRÍTICO: Recibir los parámetros de fecha ***
+        const { startDate, endDate } = req.query; 
+
+        let query = `
+            SELECT 
                 v.VENTA_ID AS "ventaId", 
                 v.FECHA_VENTA AS "fechaVenta", 
                 c.NOMBRE AS "clienteNombre",
@@ -408,17 +407,41 @@ exports.getVentasCerradas = async (req, res) => {
             FROM VENTAS v
             JOIN CLIENTES c ON v.CLIENTE_ID = c.CLIENTE_ID
             WHERE v.ESTADO_PAGO IN (:estado1, :estado2)
-            ORDER BY v.FECHA_VENTA DESC`,
-            { 
-                estado1: estadosFinales[0], // 'contado'
-                estado2: estadosFinales[1]  // 'crédito'
-            },
+        `;
+
+        const binds = {
+            estado1: estadosFinales[0],
+            estado2: estadosFinales[1]
+        };
+
+        // -----------------------------------------------------------------
+        // AÑADIR FILTRO POR FECHA
+        // -----------------------------------------------------------------
+        if (startDate) {
+            // Oracle necesita TO_DATE para comparar correctamente
+            query += ` AND v.FECHA_VENTA >= TO_DATE(:startDate, 'YYYY-MM-DD')`;
+            binds.startDate = startDate;
+        }
+
+        if (endDate) {
+            // Añadimos 23:59:59 para incluir todo el día de endDate
+            query += ` AND v.FECHA_VENTA <= TO_DATE(:endDate, 'YYYY-MM-DD') + INTERVAL '1' DAY - INTERVAL '1' SECOND`;
+            binds.endDate = endDate;
+        }
+
+        query += ` ORDER BY v.FECHA_VENTA DESC`;
+
+        connection = await db.oracledb.getConnection();
+        
+        const result = await connection.execute(
+            query,
+            binds,
             { outFormat: db.oracledb.OUT_FORMAT_OBJECT }
         );
 
         res.status(200).json({ closedDocuments: result.rows });
     } catch (err) {
-        console.error("Error al obtener ventas cerradas:", err);
+        console.error("Error al obtener ventas cerradas con filtro:", err);
         res.status(500).json({ error: 'Error interno al obtener el historial de ventas.' });
     } finally {
         if (connection) await connection.close().catch(err => console.error(err));
@@ -485,3 +508,4 @@ exports.getFacturaCompleta = async (req, res) => {
         if (connection) await connection.close().catch(err => console.error(err));
     }
 };
+

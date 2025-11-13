@@ -1,6 +1,6 @@
 // Archivo: src/features/Compra/CompraList.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // Importamos useCallback
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
@@ -14,6 +14,10 @@ const CompraList = ({ refreshKey }) => {
     const [compras, setCompras] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    // *** NUEVOS ESTADOS PARA EL FILTRO DE FECHAS ***
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [filterKey, setFilterKey] = useState(0); 
 
     // --- Funciones de Formato ---
     const formatCurrency = (amount) => `${parseFloat(amount).toFixed(2)}`;
@@ -23,41 +27,63 @@ const CompraList = ({ refreshKey }) => {
         return date.toLocaleDateString('es-GT', { year: 'numeric', month: 'short', day: 'numeric' });
     };
     
-    // --- Lógica de Carga de Compras ---
+    // --- Lógica de Carga de Compras (Ahora con Filtro) ---
+    const fetchCompras = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            // Prepara los parámetros de consulta (query strings)
+            const params = {};
+            if (startDate) params.startDate = startDate;
+            if (endDate) params.endDate = endDate;
+            
+            // Llama al endpoint GET /api/compras/historial con los filtros
+            const response = await axios.get(API_URL_HISTORIAL, { params });
+            setCompras(response.data.closedDocuments || []); 
+        } catch (err) {
+            setError("No se pudo cargar el historial de compras. Verifique el servidor de Node.js.");
+            console.error("Error al obtener compras:", err);
+        } finally {
+            setLoading(false);
+        }
+    }, [startDate, endDate]); // Dependencia para recargar al cambiar las fechas
+
     useEffect(() => {
-        const fetchCompras = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                // Llama al endpoint GET /api/compras/historial
-                const response = await axios.get(API_URL_HISTORIAL);
-                // CRÍTICO: Asumimos que el backend devuelve { closedDocuments: [...] }
-                setCompras(response.data.closedDocuments || []); 
-            } catch (err) {
-                setError("No se pudo cargar el historial de compras. Verifique el servidor de Node.js.");
-                console.error("Error al obtener compras:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchCompras();
-    }, [refreshKey]);
+    }, [fetchCompras, refreshKey, filterKey]); // filterKey dispara la búsqueda
+
+    // --- Lógica de Filtrado y Totales ---
+    const handleSearch = () => {
+        setFilterKey(prev => prev + 1); // Dispara fetchCompras con los nuevos filtros
+    };
+
+    const handleClearFilters = () => {
+        setStartDate(''); 
+        setEndDate('');
+        setFilterKey(prev => prev + 1);
+    };
+
+    // FUNCIÓN: CALCULAR EL TOTAL ACUMULADO
+    const calculateGrandTotal = () => {
+        const total = compras.reduce((sum, compra) => {
+            const bruto = parseFloat(compra.totalBruto) || 0;
+            return sum + bruto;
+        }, 0);
+        return total.toFixed(2);
+    };
+    const grandTotal = calculateGrandTotal();
 
 
-    // --- FUNCIÓN CRÍTICA: GENERAR REPORTE PDF/MODAL (Ahora funciona correctamente) ---
+    // --- FUNCIÓN CRÍTICA: GENERAR REPORTE PDF/MODAL (Se mantiene intacta) ---
     const handleGenerarReporte = async (compraId) => {
         try {
-            // Llama al endpoint GET /api/compras/:compraId/reporte para obtener el detalle
             const response = await axios.get(`${API_URL_REPORTE}/${compraId}/reporte`);
-            const data = response.data; // Contiene { header: {}, detalle: [] }
+            const data = response.data;
 
-            // CRÍTICO: Usamos los nombres de columna del backend (mayúsculas) para el header
             const totalBruto = data.header.TOTAL_BRUTO || data.header.totalBruto || 0;
             const totalNeto = data.header.TOTAL_NETO || data.header.totalNeto || 0;
             const impuestosTotal = data.header.IMPUESTOS_TOTAL || data.header.impuestosTotal || 0;
 
-            // Construir el HTML del detalle de productos
             let detalleHTML = data.detalle.map(item => `
                 <tr>
                     <td>${item.codigo}</td>
@@ -110,8 +136,47 @@ const CompraList = ({ refreshKey }) => {
         <div className="p-4">
             <h4 className="mb-4">3. Historial de Compras</h4>
             
+            {/* --- CUADRO DE BÚSQUEDA POR FECHA --- */}
+            <div className="card shadow-sm p-3 mb-4">
+                <h6 className="card-title">Filtrar por Fecha de Compra</h6>
+                <div className="d-flex align-items-center">
+                    <div className="me-3">
+                        <label className="form-label">Desde:</label>
+                        <input 
+                            type="date" 
+                            className="form-control" 
+                            value={startDate} 
+                            onChange={(e) => setStartDate(e.target.value)} 
+                        />
+                    </div>
+                    <div className="me-3">
+                        <label className="form-label">Hasta:</label>
+                        <input 
+                            type="date" 
+                            className="form-control" 
+                            value={endDate} 
+                            onChange={(e) => setEndDate(e.target.value)} 
+                        />
+                    </div>
+                    <button 
+                        className="btn btn-primary mt-3" 
+                        onClick={handleSearch}
+                        disabled={loading}
+                    >
+                        Buscar
+                    </button>
+                    <button 
+                        className="btn btn-secondary mt-3 ms-2" 
+                        onClick={handleClearFilters}
+                    >
+                        Limpiar Filtro
+                    </button>
+                </div>
+            </div>
+            {/* -------------------------------------- */}
+            
             {compras.length === 0 ? (
-                <div className="alert alert-info">No se encontraron compras registradas.</div>
+                <div className="alert alert-info">No se encontraron compras registradas que coincidan con el filtro.</div>
             ) : (
                 <div className="table-responsive">
                     <table className="table table-hover table-striped">
@@ -129,7 +194,7 @@ const CompraList = ({ refreshKey }) => {
                         </thead>
                         <tbody>
                             {compras.map((compra) => (
-                                <tr key={compra.compraId}> {/* CRÍTICO: Usamos el alias 'compraId' del backend */}
+                                <tr key={compra.compraId}>
                                     <td>{compra.compraId}</td>
                                     <td>{compra.numeroDocumento}</td>
                                     <td>{compra.proveedorNombre}</td> 
@@ -152,6 +217,15 @@ const CompraList = ({ refreshKey }) => {
                                 </tr>
                             ))}
                         </tbody>
+                        {/* --- FILA DE TOTALES ACUMULADOS --- */}
+                        <tfoot>
+                            <tr>
+                                <td colSpan="5" className="text-end fw-bold bg-light">TOTAL ACUMULADO DEL PERIODO:</td>
+                                <td className="text-end fw-bold bg-light text-success">Q{grandTotal}</td>
+                                <td colSpan="2" className="bg-light"></td>
+                            </tr>
+                        </tfoot>
+                        {/* ---------------------------------- */}
                     </table>
                 </div>
             )}
